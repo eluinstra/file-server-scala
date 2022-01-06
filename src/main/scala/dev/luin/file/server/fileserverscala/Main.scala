@@ -1,6 +1,7 @@
 package dev.luin.file.server
 
 import zio.*
+import zio.console.*
 
 object main extends App:
 
@@ -9,7 +10,7 @@ object main extends App:
   
   val program =
     for
-      _    <- Console.printLine("Hello! What is your name?")
-      name <- Console.readLine
-      _    <- Console.printLine(s"Hello, $name, welcome to ZIO!")
+      _    <- putStrLn("Hello! What is your name?")
+      name <- getStrLn
+      _    <- putStrLn(s"Hello, $name, welcome to ZIO!")
     yield ()

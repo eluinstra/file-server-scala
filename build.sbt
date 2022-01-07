@@ -38,6 +38,7 @@ lazy val commonScalacOptions = Seq(
 lazy val dependencies = Seq(
   libraryDependencies ++= Seq(
     "dev.zio" %% "zio-config" % "1.0.10",
+    "dev.zio" %% "zio-config-magnolia" % "1.0.10",
     // "dev.zio" %% "zio-json" % "0.2.0-M3",
     "dev.zio" %% "zio-test" % "1.0.13",
     "dev.zio" %% "zio-interop-cats" % "3.2.9.0",

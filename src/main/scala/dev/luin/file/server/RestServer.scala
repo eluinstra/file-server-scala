@@ -10,9 +10,8 @@ import zio.config.magnolia.descriptor
 import zio.console.*
 import zio.interop.catz.*
 
-
 object RestServer extends App:
-  
+
   case class Config(host: String, port: Int)
 
   val configuration = descriptor[Config]
@@ -21,10 +20,13 @@ object RestServer extends App:
     ZIO.runtime[ZEnv].flatMap { implicit runtime =>
       for
         conf <- getConfig[Config]
-        out <- Server.start(conf.port, userServerRoutes)
+        out <- Server.start(conf.port, userServerRoutes <> userSwaggerRoutes)
       yield out
     }
 
   override def run(args: List[String]): URIO[ZEnv, ExitCode] =
-    val configLayer = ZConfig.fromPropertiesFile("/home/user/gb/file-server-scala/src/main/resources/application.conf", configuration)
+    val configLayer = ZConfig.fromPropertiesFile(
+      "/home/user/gb/file-server-scala/src/main/resources/application.conf",
+      configuration
+    )
     program.provideLayer(ZEnv.live ++ configLayer).exitCode

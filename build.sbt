@@ -46,6 +46,7 @@ lazy val dependencies = Seq(
     "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % "0.20.0-M3",
     // "com.softwaremill.sttp.tapir" %% "tapir-json-zio" % "0.20.0-M3",
     "com.softwaremill.sttp.tapir" %% "tapir-zio-http-server" % "0.20.0-M3",
+    "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % "0.20.0-M3",
     "io.circe" %% "circe-core" % "0.14.1"
     // "org.tpolecat" %% "doobie-core" % "0.13.4",
     // "org.tpolecat" %% "doobie-h2" % "0.13.4",

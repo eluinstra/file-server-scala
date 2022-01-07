@@ -42,11 +42,9 @@ lazy val dependencies = Seq(
     // "dev.zio" %% "zio-json" % "0.2.0-M3",
     "dev.zio" %% "zio-test" % "1.0.13",
     "dev.zio" %% "zio-interop-cats" % "3.2.9.0",
-    "org.http4s" %% "http4s-server" % "0.23.7",
     "com.softwaremill.sttp.tapir" %% "tapir-core" % "0.20.0-M3",
     "com.softwaremill.sttp.tapir" %% "tapir-json-circe" % "0.20.0-M3",
     // "com.softwaremill.sttp.tapir" %% "tapir-json-zio" % "0.20.0-M3",
-    "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server" % "0.20.0-M3",
     "com.softwaremill.sttp.tapir" %% "tapir-zio-http-server" % "0.20.0-M3",
     "io.circe" %% "circe-core" % "0.14.1"
     // "org.tpolecat" %% "doobie-core" % "0.13.4",

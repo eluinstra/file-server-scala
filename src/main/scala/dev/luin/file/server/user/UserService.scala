@@ -1,15 +1,15 @@
 package dev.luin.file.server.user
 
 import io.circe.generic.auto.*
-import org.http4s.*
 import sttp.tapir.PublicEndpoint
 import sttp.tapir.generic.auto.*
 import sttp.tapir.json.circe.*
-import sttp.tapir.server.http4s.ztapir.ZHttp4sServerInterpreter
+import sttp.tapir.server.ziohttp.ZioHttpInterpreter
 import sttp.tapir.ztapir.*
+import zhttp.http.HttpApp
+import zio.{App, ExitCode, IO, RIO, UIO, URIO, ZEnv, ZIO}
 import zio.clock.Clock
 import zio.blocking.Blocking
-import zio.{App, ExitCode, IO, RIO, UIO, URIO, ZEnv, ZIO}
 import dev.luin.file.server.user.User
 
 object UserService:
@@ -30,5 +30,4 @@ object UserService:
     else
       IO.fail("Unknown user")
   }
-  val userServerRoutes: HttpRoutes[RIO[Clock & Blocking, *]] = ZHttp4sServerInterpreter().from(List(usersServerEndpoint, userServerEndpoint)).toRoutes
-  
+  val userServerRoutes: HttpApp[Any, Throwable] = ZioHttpInterpreter().toHttp(List(usersServerEndpoint, userServerEndpoint))

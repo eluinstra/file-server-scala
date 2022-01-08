@@ -11,14 +11,13 @@ import zio.console.*
 import zio.interop.catz.*
 import dev.luin.file.server.user.UserService.*
 
-
 object RestServer extends App:
-  
+
   case class Config(host: String, port: Int)
 
   val configuration = descriptor[Config]
 
-  val serve: ZIO[ZEnv & Has[Config], Throwable, Unit] =
+  val program: ZIO[ZEnv & Has[Config], Throwable, Unit] =
     ZIO.runtime[ZEnv].flatMap { implicit runtime =>
       for
         conf <- getConfig[Config]
@@ -33,5 +32,8 @@ object RestServer extends App:
     }
 
   override def run(args: List[String]): URIO[ZEnv, ExitCode] = //serve.exitCode
-    val configLayer = ZConfig.fromPropertiesFile("/home/user/gb/file-server-scala/src/main/resources/application.conf", configuration)
-    serve.provideLayer(ZEnv.live ++ configLayer).exitCode
+    val configLayer = ZConfig.fromPropertiesFile(
+      "/home/user/gb/file-server-scala/src/main/resources/application.conf",
+      configuration
+    )
+    program.provideLayer(ZEnv.live ++ configLayer).exitCode

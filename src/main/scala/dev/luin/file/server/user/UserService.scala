@@ -14,6 +14,7 @@ import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
 import zio.interop.catz.*
+import zio.logging.Logging
 
 object userService:
 
@@ -24,9 +25,10 @@ object userService:
       def find(id: Int): ZIO[Any, String, User]
       def get(): ZIO[Any, String, List[User]]
 
-    val live: Layer[Nothing, UserService] = ZLayer.succeed(
+    val live: ZLayer[Logging, Nothing, UserService] = ZLayer.fromService(logger =>
       new Service {
         def find(userId: Int): ZIO[Any, String, User] =
+          logger.info(s"find user $userId")
           if (userId == 35)
             UIO(User("username", "certificate"))
           else

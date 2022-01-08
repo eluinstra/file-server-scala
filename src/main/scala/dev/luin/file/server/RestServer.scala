@@ -44,4 +44,4 @@ object RestServer extends App:
       "/home/user/gb/file-server-scala/src/main/resources/application.conf",
       configuration
     )
-    program.provideLayer(ZEnv.live ++ configLayer ++ loggingLayer ++ UserService.live).exitCode
+    program.provideLayer(ZEnv.live ++ configLayer ++ loggingLayer ++ (loggingLayer >>> UserService.live)).exitCode

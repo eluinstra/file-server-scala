@@ -11,6 +11,7 @@ import zio.config.magnolia.descriptor
 import zio.console.*
 import zio.interop.catz.*
 import zio.logging.*
+import dev.luin.file.server.user.userRepo.UserRepo
 
 object RestServer extends App:
 
@@ -29,14 +30,14 @@ object RestServer extends App:
       for
         conf <- getConfig[Config]
         _ <- log.info(s"Starting with $conf")
-        out <- BlazeServerBuilder[RIO[Clock & Blocking & UserService, *]]
+        _ <- BlazeServerBuilder[RIO[Clock & Blocking & UserService, *]]
           .withExecutionContext(runtime.platform.executor.asEC)
           .bindHttp(conf.port, conf.host)
           .withHttpApp(Router("/" -> (userServerRoutes)).orNotFound)
           .serve
           .compile
           .drain
-      yield out
+      yield ()
     }
 
   override def run(args: List[String]): URIO[ZEnv, ExitCode] =
@@ -44,4 +45,8 @@ object RestServer extends App:
       "/home/user/gb/file-server-scala/src/main/resources/application.conf",
       configuration
     )
-    program.provideLayer(ZEnv.live ++ configLayer ++ loggingLayer ++ (loggingLayer >>> UserService.live)).exitCode
+    program
+      .provideLayer(
+        ZEnv.live ++ configLayer ++ loggingLayer ++ (loggingLayer ++ UserRepo.live >>> UserService.live)
+      )
+      .exitCode

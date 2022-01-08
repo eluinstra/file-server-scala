@@ -14,7 +14,8 @@ import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
 import zio.interop.catz.*
-import zio.logging.Logging
+import zio.logging.*
+import dev.luin.file.server.user.userRepo.UserRepo
 
 object userService:
 
@@ -22,36 +23,37 @@ object userService:
 
   object UserService:
     trait Service:
-      def find(id: Int): ZIO[Any, String, User]
-      def get(): ZIO[Any, String, List[User]]
+      def findById(id: Int): ZIO[Any, String, User]
+      def findAll(): ZIO[Any, String, List[User]]
 
-    val live: ZLayer[Logging, Nothing, UserService] = ZLayer.fromService(logger =>
-      new Service {
-        def find(userId: Int): ZIO[Any, String, User] =
-          logger.info(s"find user $userId")
-          if (userId == 35)
-            UIO(User("username", "certificate"))
-          else
-            IO.fail("Unknown user")
+    val any: ZLayer[UserService, Nothing, UserService] =
+      ZLayer.requires[UserService]
 
-        def get(): ZIO[Any, String, List[User]] =
-          UIO(
-            List(
-              User("username", "certificate"),
-              User("username1", "certificate")
-            )
-          )
+    val live: ZLayer[Logging & UserRepo, Nothing, UserService] =
+      ZLayer.fromServices[Logger[String], UserRepo.Service, UserService.Service] { (logger, userRepo) =>
+        new Service {
+          def findById(id: Int): ZIO[Any, String, User] =
+            for
+              _ <- logger.info(s"find user $id")
+              u <- userRepo.findById(id)
+            yield u
+
+          def findAll(): ZIO[Any, String, List[User]] =
+            for
+              _ <-logger.info(s"find all users")
+              u <- userRepo.findAll()
+            yield u
+        }
       }
-    )
 
-    def find(id: Int): ZIO[UserService, String, User] = ZIO.accessM(_.get.find(id))
-    def get(): ZIO[UserService, String, List[User]] = ZIO.accessM(_.get.get())
+    def findById(id: Int): ZIO[UserService, String, User] = ZIO.accessM(_.get.findById(id))
+    def findAll(): ZIO[UserService, String, List[User]] = ZIO.accessM(_.get.findAll())
 
   val usersEndpoint: PublicEndpoint[Unit, String, List[User], Any] =
     endpoint.get.in("user").errorOut(stringBody).out(jsonBody[List[User]])
 
   val usersServerEndpoint: ZServerEndpoint[UserService, Any] =
-    usersEndpoint.zServerLogic(userId => UserService.get())
+    usersEndpoint.zServerLogic(userId => UserService.findAll())
 
   val userEndpoint: PublicEndpoint[Int, String, User, Any] =
     endpoint.get
@@ -60,9 +62,9 @@ object userService:
       .out(jsonBody[User])
 
   val userServerEndpoint: ZServerEndpoint[UserService, Any] =
-    userEndpoint.zServerLogic(userId => UserService.find(userId))
+    userEndpoint.zServerLogic(userId => UserService.findById(userId))
 
-  val userServerRoutes: HttpRoutes[RIO[UserService & Clock & Blocking, *]] =
+  val userServerRoutes: HttpRoutes[RIO[Clock & Blocking & UserService, *]] =
     ZHttp4sServerInterpreter()
       .from(List(usersServerEndpoint, userServerEndpoint))
       .toRoutes

@@ -1,5 +1,6 @@
 package dev.luin.file.server
 
+import dev.luin.file.server.user.UserService.*
 import org.http4s.server.Router
 import org.http4s.blaze.server.BlazeServerBuilder
 import zio.{App, ExitCode, Has, IO, RIO, UIO, URIO, ZEnv, ZIO}
@@ -9,7 +10,7 @@ import zio.config.*
 import zio.config.magnolia.descriptor
 import zio.console.*
 import zio.interop.catz.*
-import dev.luin.file.server.user.UserService.*
+import zio.logging.*
 
 object RestServer extends App:
 
@@ -17,10 +18,17 @@ object RestServer extends App:
 
   val configuration = descriptor[Config]
 
-  val program: ZIO[ZEnv & Has[Config], Throwable, Unit] =
+  val loggingLayer =
+    Logging.console(
+      logLevel = LogLevel.Info,
+      format = LogFormat.ColoredLogFormat()
+    ) >>> Logging.withRootLoggerName("file-server")
+
+  val program: ZIO[ZEnv & Has[Config] & Logging, Throwable, Unit] =
     ZIO.runtime[ZEnv].flatMap { implicit runtime =>
       for
         conf <- getConfig[Config]
+        _ <- log.info(s"Starting with $conf")
         out <- BlazeServerBuilder[RIO[Clock & Blocking, *]]
           .withExecutionContext(runtime.platform.executor.asEC)
           .bindHttp(conf.port, conf.host)
@@ -31,9 +39,9 @@ object RestServer extends App:
       yield out
     }
 
-  override def run(args: List[String]): URIO[ZEnv, ExitCode] = //serve.exitCode
+  override def run(args: List[String]): URIO[ZEnv, ExitCode] =
     val configLayer = ZConfig.fromPropertiesFile(
       "/home/user/gb/file-server-scala/src/main/resources/application.conf",
       configuration
     )
-    program.provideLayer(ZEnv.live ++ configLayer).exitCode
+    program.provideLayer(ZEnv.live ++ configLayer ++ loggingLayer).exitCode

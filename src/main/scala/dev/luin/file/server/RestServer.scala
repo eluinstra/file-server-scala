@@ -1,6 +1,6 @@
 package dev.luin.file.server
 
-import dev.luin.file.server.user.UserService.*
+import dev.luin.file.server.user.userService.*
 import org.http4s.server.Router
 import org.http4s.blaze.server.BlazeServerBuilder
 import zio.{App, ExitCode, Has, IO, RIO, UIO, URIO, ZEnv, ZIO}
@@ -24,12 +24,12 @@ object RestServer extends App:
       format = LogFormat.ColoredLogFormat()
     ) >>> Logging.withRootLoggerName("file-server")
 
-  val program: ZIO[ZEnv & Has[Config] & Logging, Throwable, Unit] =
-    ZIO.runtime[ZEnv].flatMap { implicit runtime =>
+  val program: ZIO[ZEnv & Has[Config] & Logging & UserService, Throwable, Unit] =
+    ZIO.runtime[ZEnv & Has[Config] & Logging & UserService].flatMap { implicit runtime =>
       for
         conf <- getConfig[Config]
         _ <- log.info(s"Starting with $conf")
-        out <- BlazeServerBuilder[RIO[Clock & Blocking, *]]
+        out <- BlazeServerBuilder[RIO[Clock & Blocking & UserService, *]]
           .withExecutionContext(runtime.platform.executor.asEC)
           .bindHttp(conf.port, conf.host)
           .withHttpApp(Router("/" -> (userServerRoutes)).orNotFound)
@@ -44,4 +44,4 @@ object RestServer extends App:
       "/home/user/gb/file-server-scala/src/main/resources/application.conf",
       configuration
     )
-    program.provideLayer(ZEnv.live ++ configLayer ++ loggingLayer).exitCode
+    program.provideLayer(ZEnv.live ++ configLayer ++ loggingLayer ++ UserService.live).exitCode

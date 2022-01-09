@@ -11,7 +11,7 @@ ThisBuild / scalacOptions ++=
     "-unchecked",
     "-Xfatal-warnings",
     // "-Yexplicit-nulls", // experimental (I've seen it cause issues with circe)
-    "-Ykind-projector",
+    "-Ykind-projector"
     // "-Ysafe-init", // experimental (I've seen it cause issues with circe)
   ) ++ Seq("-rewrite", "-indent") ++ Seq("-source", "future")
 
@@ -29,10 +29,10 @@ lazy val commonSettings = commonScalacOptions ++ Seq(
 lazy val commonScalacOptions = Seq(
   Compile / console / scalacOptions --= Seq(
     "-Wunused:_",
-    "-Xfatal-warnings",
+    "-Xfatal-warnings"
   ),
   Test / console / scalacOptions :=
-    (Compile / console / scalacOptions).value,
+    (Compile / console / scalacOptions).value
 )
 
 lazy val dependencies = Seq(
@@ -50,14 +50,16 @@ lazy val dependencies = Seq(
     "com.softwaremill.sttp.tapir" %% "tapir-swagger-ui-bundle" % "0.20.0-M3",
     "com.softwaremill.sttp.tapir" %% "tapir-zio-http4s-server" % "0.20.0-M3",
     "com.softwaremill.sttp.tapir" %% "tapir-zio-http-server" % "0.20.0-M3",
-    "io.circe" %% "circe-core" % "0.14.1"
-    // "org.tpolecat" %% "doobie-core" % "0.13.4",
-    // "org.tpolecat" %% "doobie-h2" % "0.13.4",
-    // "org.tpolecat" %% "doobie-hikari" % "0.13.4",
-    // "org.tpolecat" %% "doobie-postgres" % "0.13.4"
+    "io.circe" %% "circe-core" % "0.14.1",
+    "io.getquill" %% "quill-jdbc-zio" % "3.12.0.Beta1.7"
+      exclude ("org.scala-lang.modules", "scala-collection-compat_2.13")
+      exclude ("com.lihaoyi", "sourcecode_2.13")
+      exclude ("com.lihaoyi", "fansi_2.13")
+      exclude ("com.lihaoyi", "pprint_2.13"),
+    "org.postgresql" % "postgresql" % "42.2.8"
   ),
   libraryDependencies ++= Seq(
     org.scalatest.scalatest,
-    org.scalatestplus.`scalacheck-1-15`,
-  ).map(_ % Test),
+    org.scalatestplus.`scalacheck-1-15`
+  ).map(_ % Test)
 )

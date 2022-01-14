@@ -45,14 +45,15 @@ object userService:
           def findById(id: Int): ZIO[Any, String, FsUser] =
             for
               _ <- logger.info(s"find user $id")
-              u <- userRepo.findById(id)
-            yield u
+              user <- userRepo.findById(id).orDie
+              _ <- logger.info(s"found user $user")
+            yield user
 
           def findAll(): ZIO[Any, String, List[FsUser]] =
             for
               _ <-logger.info(s"find all users")
-              u <- userRepo.findAll()
-            yield u
+              users <- userRepo.findAll().orDie
+            yield users
         }
       }
 

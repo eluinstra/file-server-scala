@@ -32,22 +32,22 @@ object RestServer extends App:
 
   case class Config(host: String, port: Int)
 
-  val config = descriptor[Config]
+  lazy val config = descriptor[Config]
 
-  val loggingLayer =
+  lazy val loggingLayer =
     Logging.console(
       logLevel = LogLevel.Info,
       format = LogFormat.ColoredLogFormat()
     ) >>> Logging.withRootLoggerName("file-server")
 
-  val dataSourceLayer: ULayer[Has[DataSource]] = DataSourceLayer.fromPrefix("db").orDie
+  lazy val dataSourceLayer = DataSourceLayer.fromPrefix("db").orDie
 
-  val program: ZIO[ZEnv & Has[Config] & Logging & UserService & UserRepo, Throwable, Unit] =
-    ZIO.runtime[ZEnv & Has[Config] & Logging & UserService & UserRepo].flatMap { implicit runtime =>
+  val program: ZIO[ZEnv & Has[Config] & Logging & Has[UserService], Throwable, Unit] =
+    ZIO.runtime[ZEnv & Has[Config] & Logging & Has[UserService]].flatMap { implicit runtime =>
       for
         conf <- getConfig[Config]
         _ <- log.info(s"Starting with $conf")
-        _ <- BlazeServerBuilder[RIO[Clock & Blocking & UserService, *]]
+        _ <- BlazeServerBuilder[RIO[Clock & Blocking & Has[UserService], *]]
           .withExecutionContext(runtime.platform.executor.asEC)
           .bindHttp(conf.port, conf.host)
           .withHttpApp(Router("/" -> (userServerRoutes)).orNotFound)
@@ -58,13 +58,13 @@ object RestServer extends App:
     }
 
   override def run(args: List[String]): URIO[ZEnv, ExitCode] =
-    val configLayer = ZConfig.fromPropertiesFile(
+    lazy val configLayer = ZConfig.fromPropertiesFile(
       "/home/user/gb/file-server-scala/src/main/resources/application.conf",
       config
     )
-    val userRepo = (dataSourceLayer >>> UserRepo.live)
+    lazy val userRepoLayer = (dataSourceLayer >>> UserRepo.defaultLayer)
     program
       .provideLayer(
-        ZEnv.live ++ configLayer ++ loggingLayer ++ (loggingLayer ++ userRepo >>> UserService.live) ++ userRepo
+        ZEnv.live ++ configLayer ++ loggingLayer ++ (loggingLayer ++ userRepoLayer >>> UserService.defaultLayer)
       )
       .exitCode

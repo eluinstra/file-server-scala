@@ -41,6 +41,7 @@ lazy val dependencies = Seq(
     "dev.zio" %% "zio-config-magnolia" % "1.0.10",
     // "dev.zio" %% "zio-json" % "0.2.0-M3",
     "dev.zio" %% "zio-logging" % "0.5.14",
+    // "dev.zio" %% "zio-macros" % "1.0.13",
     "dev.zio" %% "zio-test" % "1.0.13",
     "dev.zio" %% "zio-interop-cats" % "3.2.9.0",
     "org.http4s" %% "http4s-server" % "0.23.7",

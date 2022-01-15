@@ -3,7 +3,6 @@ package dev.luin.file.server.user
 import dev.luin.file.server.user.FsUser
 import io.getquill.*
 import zio.*
-// import zio.macros.accessible
 
 import javax.sql.DataSource
 

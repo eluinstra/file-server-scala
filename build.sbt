@@ -57,6 +57,7 @@ lazy val dependencies = Seq(
       exclude ("com.lihaoyi", "sourcecode_2.13")
       exclude ("com.lihaoyi", "fansi_2.13")
       exclude ("com.lihaoyi", "pprint_2.13"),
+    "org.flywaydb" % "flyway-core" % "8.4.1",
     "org.postgresql" % "postgresql" % "42.2.8"
   ),
   libraryDependencies ++= Seq(

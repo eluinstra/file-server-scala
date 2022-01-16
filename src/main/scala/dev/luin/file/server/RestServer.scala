@@ -1,5 +1,6 @@
 package dev.luin.file.server
 
+import cats.syntax.all.*
 import dev.luin.file.server.config.*
 import dev.luin.file.server.dbMigrator.DbMigrator
 import dev.luin.file.server.user.userRepo.UserRepo
@@ -51,7 +52,7 @@ object RestServer extends App:
         _ <- BlazeServerBuilder[RIO[Clock & Blocking & Has[UserService], *]]
           .withExecutionContext(runtime.platform.executor.asEC)
           .bindHttp(conf.server.port, conf.server.host)
-          .withHttpApp(Router("/" -> (userServerRoutes)).orNotFound)
+          .withHttpApp(Router("/" -> (userServerRoutes <+> userSwaggerRoutes)).orNotFound)
           .serve
           .compile
           .drain

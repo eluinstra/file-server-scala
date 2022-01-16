@@ -1,5 +1,6 @@
 package dev.luin.file.server.user
 
+import dev.luin.file.server.config.JdbcContext.*
 import dev.luin.file.server.user.FsUser
 import io.getquill.*
 import zio.*
@@ -8,46 +9,61 @@ import javax.sql.DataSource
 
 object userRepo:
 
-  val jdbcContext = new PostgresZioJdbcContext(SnakeCase)
-  import jdbcContext.*
-
   // @accessible
   trait UserRepo:
-    def findById(id: Long): IO[jdbcContext.Error, FsUser]
-    // def findByCertificate(certificate: String): ZIO[Any, String, FsUser]
-    def findAll(): IO[jdbcContext.Error, List[FsUser]]
-  // def countAll(): ZIO[Any, String, Int]
-  // def create(user: FsUser): ZIO[Any, String, FsUser]
-  // def update(user: FsUser): ZIO[Any, String, Int]
-  // def delete(id: Long): ZIO[Any, String, Int]
+    def findById(id: UserId): IO[Error, Option[FsUser]]
+    def findByCertificate(certificate: Certificate): IO[Error, Option[FsUser]]
+    def findAll(): IO[Error, List[FsUser]]
+    def create(user: FsUser): IO[Error, FsUser]
+    def update(user: FsUser): IO[Error, Long]
+    def delete(id: UserId): IO[Error, Long]
 
   object UserRepo:
+
     val defaultLayer: ZLayer[Has[DataSource], Nothing, Has[UserRepo]] =
       ZLayer.fromService[DataSource, UserRepo] { dataSource =>
         new UserRepo {
-          def findById(id: Long): IO[jdbcContext.Error, FsUser] =
-            run {
-              query[FsUser].filter(u => u.id == lift(id))
-            }.provide(Has(dataSource)).map(_.head)
 
-          // def findByCertificate(certificate: String): ZIO[Any, String, FsUser] = ???
-          def findAll(): IO[jdbcContext.Error, List[FsUser]] =
+          inline given InsertMeta[FsUser] = insertMeta(_.id)
+          inline given UpdateMeta[FsUser] = updateMeta(_.id)
+
+          def findById(id: UserId): IO[Error, Option[FsUser]] =
+            run {
+              query[FsUser].filter(_.id == lift(id))
+            }.provide(Has(dataSource)).map(_.headOption)
+
+          def findByCertificate(certificate: Certificate): IO[Error, Option[FsUser]] =
+            run {
+              query[FsUser].filter(u => u.certificate == lift(certificate))
+            }.provide(Has(dataSource)).map(_.headOption)
+
+          def findAll(): IO[Error, List[FsUser]] =
             run {
               query[FsUser]
             }.provide(Has(dataSource))
-        }
 
-      // def countAll(): ZIO[Any, String, Int] = ???
-      // def create(user: FsUser): ZIO[Any, String, FsUser] = ???
-      // def update(user: FsUser): ZIO[Any, String, Int] = ???
-      // def delete(Id: Long): ZIO[Any, String, Int] = ???
+          def create(user: FsUser): IO[Error, FsUser] =
+            run {
+              query[FsUser].insert(lift(user)).returning(_.id)
+            }.provide(Has(dataSource)).map(id => user.copy(id = id))
+
+          def update(user: FsUser): IO[Error, Long] =
+            //TODO: fix with lift(user.id)
+            run {
+              query[FsUser].filter(_.id == user.id).update(lift(user))
+            }.provide(Has(dataSource)).map(_.longValue)
+
+          def delete(id: UserId): IO[Error, Long] =
+            run {
+              query[FsUser].filter(_.id == lift(id)).delete
+            }.provide(Has(dataSource)).map(_.longValue)
+        }
       }
 
-    def findById(id: Long): ZIO[Has[UserRepo], jdbcContext.Error, FsUser] = ZIO.accessM(_.get.findById(id))
-    // def findByCertificate(certificate: String): ZIO[Has[UserRepo], String, FsUser] =
-    //   ZIO.accessM(_.get.findByCertificate(certificate))
-    def findAll(): ZIO[Has[UserRepo], jdbcContext.Error, List[FsUser]] = ZIO.accessM(_.get.findAll())
-  // def countAll(): ZIO[Has[UserRepo], String, Int] = ZIO.accessM(_.get.countAll())
-  // def create(user: FsUser): ZIO[Has[UserRepo], String, FsUser] = ZIO.accessM(_.get.create(user))
-  // def update(user: FsUser): ZIO[Has[UserRepo], String, Int] = ZIO.accessM(_.get.update(user))
-  // def delete(id: Long): ZIO[Has[UserRepo], String, Int] = ZIO.accessM(_.get.delete(id))
+    def findById(id: UserId): ZIO[Has[UserRepo], Error, Option[FsUser]] = ZIO.accessM(_.get.findById(id))
+    def findByCertificate(certificate: Certificate): ZIO[Has[UserRepo], Error, Option[FsUser]] =
+      ZIO.accessM(_.get.findByCertificate(certificate))
+    def findAll(): ZIO[Has[UserRepo], Error, List[FsUser]] = ZIO.accessM(_.get.findAll())
+    def create(user: FsUser): ZIO[Has[UserRepo], Error, FsUser] = ZIO.accessM(_.get.create(user))
+    def update(user: FsUser): ZIO[Has[UserRepo], Error, Long] = ZIO.accessM(_.get.update(user))
+    def delete(id: UserId): ZIO[Has[UserRepo], Error, Long] = ZIO.accessM(_.get.delete(id))

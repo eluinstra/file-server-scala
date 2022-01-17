@@ -144,27 +144,12 @@ val deleteUserEndpoint: PublicEndpoint[UserId, StatusCode, Long, Any] =
     .out(jsonBody[Long].description("Nr of deleted Users"))
     .description("Deletes User identified by userId")
 
-val userServerRoutes: HttpRoutes[RIO[Clock & Blocking & Has[UserService], *]] =
-  ZHttp4sServerInterpreter()
-    .from(
-      List(
-        userEndpoint.zServerLogic(UserService.findById(_)),
-        usersEndpoint.zServerLogic(userId => UserService.findAll()),
-        createUserEndpoint.zServerLogic(UserService.createUser(_)),
-        updateUserEndpoint.zServerLogic(UserService.updateUser(_, _)),
-        deleteUserEndpoint.zServerLogic(UserService.deleteUser(_))
-      )
-    )
-    .toRoutes
+val userServiceEndpoints = List(usersEndpoint, userEndpoint, createUserEndpoint, updateUserEndpoint, deleteUserEndpoint)
 
-val userSwaggerRoutes: HttpRoutes[RIO[Clock & Blocking & Has[UserService], *]] =
-  ZHttp4sServerInterpreter()
-    .from(
-      SwaggerInterpreter()
-        .fromEndpoints[RIO[Clock & Blocking & Has[UserService], *]](
-          List(usersEndpoint, userEndpoint, createUserEndpoint, updateUserEndpoint, deleteUserEndpoint),
-          "Users",
-          "1.0"
-        )
-    )
-    .toRoutes
+val userServerEndpoints = List(
+  userEndpoint.zServerLogic(UserService.findById(_)),
+  usersEndpoint.zServerLogic(userId => UserService.findAll()),
+  createUserEndpoint.zServerLogic(UserService.createUser(_)),
+  updateUserEndpoint.zServerLogic(UserService.updateUser(_, _)),
+  deleteUserEndpoint.zServerLogic(UserService.deleteUser(_))
+)

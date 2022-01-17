@@ -3,6 +3,10 @@ package dev.luin.file.server
 import cats.syntax.all.*
 import dev.luin.file.server.config.*
 import dev.luin.file.server.dbMigrator.DbMigrator
+import dev.luin.file.server.file.FileSystem
+import dev.luin.file.server.file.fileRepo.FileRepo
+import dev.luin.file.server.file.fileService.*
+import dev.luin.file.server.user.userManager.UserManager
 import dev.luin.file.server.user.userRepo.UserRepo
 import dev.luin.file.server.user.userService.*
 import io.getquill.PostgresJdbcContext
@@ -28,8 +32,10 @@ import zio.config.magnolia.descriptor
 import zio.console.*
 import zio.interop.catz.*
 import zio.logging.*
-
-import javax.sql.DataSource
+import sttp.tapir.server.http4s.ztapir.ZHttp4sServerInterpreter
+import org.http4s.HttpRoutes
+import sttp.tapir.swagger.bundle.SwaggerInterpreter
+import sttp.tapir.ztapir.{fileServerEndpoints as _, *}
 
 object RestServer extends App:
 
@@ -43,16 +49,43 @@ object RestServer extends App:
 
   lazy val dataSourceLayer = DataSourceLayer.fromPrefix("db").orDie
 
-  val program: ZIO[ZEnv & Has[ApplicationConfig] & Has[DbMigrator] & Logging & Has[UserService], Throwable, Unit] =
-    ZIO.runtime[ZEnv & Has[ApplicationConfig] & Has[DbMigrator] & Logging & Has[UserService]].flatMap { implicit runtime =>
+  type Env = Has[UserService] & Has[FileService]
+
+  val serverRoutes: HttpRoutes[RIO[Clock & Blocking & Env, *]] =
+    ZHttp4sServerInterpreter()
+      .from(
+        userServerEndpoints.map(_.widen[Env]) ++ fileServerEndpoints.map(_.widen[Env])
+      )
+      .toRoutes
+
+  val swaggerRoutes: HttpRoutes[RIO[Clock & Blocking & Env, *]] =
+    ZHttp4sServerInterpreter()
+      .from(
+        SwaggerInterpreter()
+          .fromEndpoints[RIO[Clock & Blocking & Env, *]](
+            userServiceEndpoints ++ fileServiceEndpoints,
+            "Users",
+            "1.0"
+          )
+      )
+      .toRoutes
+
+  val program: ZIO[ZEnv & Has[ApplicationConfig] & Has[DbMigrator] & Logging & Env, Throwable, Unit] =
+    ZIO.runtime.flatMap { implicit runtime =>
       for
         conf <- getConfig[ApplicationConfig]
-        _ <- DbMigrator.migrate(conf.db.dataSource.url.stripPrefix("\"").stripSuffix("\""), conf.db.dataSource.user, conf.db.dataSource.password)
+        _ <- DbMigrator.migrate(
+          conf.db.dataSource.url.stripPrefix("\"").stripSuffix("\""),
+          conf.db.dataSource.user,
+          conf.db.dataSource.password
+        )
         _ <- log.info(s"Starting with $conf")
-        _ <- BlazeServerBuilder[RIO[Clock & Blocking & Has[UserService], *]]
+        _ <- BlazeServerBuilder[RIO[Clock & Blocking & Env, *]]
           .withExecutionContext(runtime.platform.executor.asEC)
           .bindHttp(conf.server.port, conf.server.host)
-          .withHttpApp(Router("/" -> (userServerRoutes <+> userSwaggerRoutes)).orNotFound)
+          .withHttpApp(
+            Router("/" -> (serverRoutes <+> swaggerRoutes)).orNotFound
+          )
           .serve
           .compile
           .drain
@@ -67,8 +100,14 @@ object RestServer extends App:
       Some(',')
     )
     lazy val userRepoLayer = (dataSourceLayer >>> UserRepo.defaultLayer)
+    lazy val userServiceLayer = (loggingLayer ++ userRepoLayer >>> UserService.defaultLayer)
+    lazy val userManagerLayer = (userRepoLayer >>> UserManager.defaultLayer)
+    lazy val fileRepoLayer = (dataSourceLayer >>> FileRepo.defaultLayer)
+    lazy val fileSystemLayer = (ZEnv.live ++ fileRepoLayer >>> FileSystem.defaultLayer)
+    lazy val fileServiceLayer =
+      (loggingLayer ++ userManagerLayer ++ fileSystemLayer >>> FileService.defaultLayer)
     program
       .provideLayer(
-        ZEnv.live ++ configLayer ++ DbMigrator.defaultLayer ++ loggingLayer ++ (loggingLayer ++ userRepoLayer >>> UserService.defaultLayer)
+        ZEnv.live ++ configLayer ++ DbMigrator.defaultLayer ++ loggingLayer ++ userServiceLayer ++ fileServiceLayer
       )
       .exitCode

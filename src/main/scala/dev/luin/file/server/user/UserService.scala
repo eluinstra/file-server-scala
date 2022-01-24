@@ -7,6 +7,7 @@ import io.circe.Encoder
 import io.circe.generic.auto.*
 import org.http4s.*
 import sttp.model.StatusCode
+import sttp.model.StatusCodes
 import sttp.tapir.PublicEndpoint
 import sttp.tapir.generic.auto.*
 import sttp.tapir.json.circe.*
@@ -62,35 +63,35 @@ object UserService:
         def getUser(id: UserId): ZIO[Any, StatusCode, FsUser] =
           for
             _ <- logger.info(s"getUser $id")
-            user <- userRepo.findById(id).mapError(_ => StatusCode(500))
+            user <- userRepo.findById(id).mapError(_ => StatusCode.InternalServerError)
             res <- user match
-              case None        => ZIO.fail(StatusCode(404))
+              case None        => ZIO.fail(StatusCode.NotFound)
               case Some(value) => ZIO.succeed(value)
           yield res
 
         def getUsers(): ZIO[Any, StatusCode, List[FsUser]] =
           for
             _ <- logger.info(s"getUsers")
-            users <- userRepo.findAll().mapError(_ => StatusCode(500))
+            users <- userRepo.findAll().mapError(_ => StatusCode.InternalServerError)
           yield users
 
         def createUser(user: NewUser): ZIO[Any, StatusCode, FsUser] =
           for
             _ <- logger.info(s"createUser $user")
-            user <- userRepo.create(user.toUser).mapError(_ => StatusCode(500))
+            user <- userRepo.create(user.toUser).mapError(_ => StatusCode.InternalServerError)
           yield user
 
         def updateUser(id: UserId, user: NewUser): ZIO[Any, StatusCode, Long] =
           lazy val u = FsUser(id, user.name, user.certificate)
           for
             _ <- logger.info(s"updateUser $u")
-            updated <- userRepo.update(u).mapError(_ => StatusCode(500))
+            updated <- userRepo.update(u).mapError(_ => StatusCode.InternalServerError)
           yield updated
 
         def deleteUser(id: UserId): ZIO[Any, StatusCode, Long] =
           for
             _ <- logger.info(s"deleteUser $id")
-            deleted <- userRepo.delete(id).mapError(_ => StatusCode(500))
+            deleted <- userRepo.delete(id).mapError(_ => StatusCode.InternalServerError)
           yield deleted
       }
     }
@@ -108,26 +109,40 @@ val baseEndpoint: PublicEndpoint[Unit, StatusCode, Unit, Any] =
 
 val userEndpoint: PublicEndpoint[UserId, StatusCode, FsUser, Any] =
   baseEndpoint.get
-    .in(path[UserId]("userId"))
-    .out(jsonBody[FsUser])
+    .description("findUserById")
+    .in(path[UserId]("userId").description("userId"))
+    .out(jsonBody[FsUser].description("User"))
+    .description("Returns the User identified by userId")
+    .errorOut(statusCode(StatusCode.NotFound).description("User not found"))
 
 val usersEndpoint: PublicEndpoint[Unit, StatusCode, List[FsUser], Any] =
-  baseEndpoint.get.out(jsonBody[List[FsUser]])
+  baseEndpoint.get
+    .description("findAllUsers")
+    .out(jsonBody[List[FsUser]].description("List of Users"))
+    .description("Returns a list of all Users")
 
 val createUserEndpoint: PublicEndpoint[NewUser, StatusCode, FsUser, Any] =
   baseEndpoint.post
-    .in(jsonBody[NewUser])
-    .out(jsonBody[FsUser])
+    .description("createUser")
+    .in(jsonBody[NewUser].description("New user details"))
+    .out(jsonBody[FsUser].description("Newly created User"))
+    .description("Creates a new User")
 
 val updateUserEndpoint: PublicEndpoint[(UserId, NewUser), StatusCode, Long, Any] =
   baseEndpoint.put
-    .in(path[UserId]("userId").and(jsonBody[NewUser]))
-    .out(jsonBody[Long])
+    .description("updateUser")
+    .in(
+      path[UserId]("userId").description("userId").and(jsonBody[NewUser].description("Updated user details"))
+    )
+    .out(jsonBody[Long].description("Nr of updated Users"))
+    .description("Updates user details for User identified by userId")
 
 val deleteUserEndpoint: PublicEndpoint[UserId, StatusCode, Long, Any] =
   baseEndpoint.delete
-    .in(path[UserId]("userId"))
-    .out(jsonBody[Long])
+    .description("deleteUser")
+    .in(path[UserId]("userId").description("userId"))
+    .out(jsonBody[Long].description("Nr of deleted Users"))
+    .description("Deletes User identified by userId")
 
 val userServerRoutes: HttpRoutes[RIO[Clock & Blocking & Has[UserService], *]] =
   ZHttp4sServerInterpreter()
